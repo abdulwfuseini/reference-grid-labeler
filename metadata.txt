@@ -1,0 +1,35 @@
+[general]
+name=Reference Grid Labeler
+qgisMinimumVersion=3.16
+description=Add a ready-made atlas-style reference grid - lettered columns, numbered rows - to any map in a few clicks.
+description[de]=Fügt jeder Karte mit wenigen Klicks ein fertiges Kartenraster im Atlas-Stil hinzu - Spalten mit Buchstaben, Zeilen mit Zahlen.
+description[es]=Añade una cuadrícula de referencia al estilo atlas - columnas con letras, filas con números - a cualquier mapa en pocos clics.
+description[fr]=Ajoute une grille de référence de style atlas - colonnes lettrées, lignes numérotées - à toute carte en quelques clics.
+description[ru]=Добавляет на карту готовую координатную сетку в стиле атласа - столбцы с буквами, строки с числами - за несколько кликов.
+description[zh]=只需点击几下,即可为任意地图添加现成的图集风格参考网格(字母列、数字行)。
+description[ar]=يضيف شبكة مرجعية جاهزة على طراز الأطالس - أعمدة بأحرف وصفوف بأرقام - إلى أي خريطة ببضع نقرات.
+version=1.0.0
+author=Abdul Fuseini
+email=abdulgis65@gmail.com
+
+about=Adds the classic atlas-style search grid - lettered columns, numbered rows - to any QGIS project, with ready-to-use grid and label layers. See the bundled user guide for full installation and usage instructions.
+about[de]=Fügt das klassische Atlas-Suchraster - Buchstaben-Spalten und Zahlen-Zeilen - zu jedem QGIS-Projekt hinzu, mit sofort einsatzbereiten Raster- und Beschriftungs-Ebenen. Die vollständige Anleitung finden Sie im mitgelieferten Benutzerhandbuch.
+about[es]=Añade la clásica cuadrícula de búsqueda de atlas - columnas con letras y filas con números - a cualquier proyecto de QGIS, con capas de cuadrícula y etiquetas listas para usar. Consulte la guía de usuario incluida para instrucciones completas.
+about[fr]=Ajoute la grille de recherche classique des atlas - colonnes lettrées, lignes numérotées - à tout projet QGIS, avec des couches de grille et d'étiquettes prêtes à l'emploi. Consultez le guide utilisateur fourni pour les instructions complètes.
+about[ru]=Добавляет классическую поисковую сетку атласов - столбцы с буквами и строки с числами - в любой проект QGIS, с готовыми к использованию слоями сетки и подписей. Полные инструкции см. в прилагаемом руководстве пользователя.
+about[zh]=为任意 QGIS 项目添加经典的图集检索网格(字母列、数字行),并提供可直接使用的网格图层和标注图层。完整说明请参阅随附的用户指南。
+about[ar]=تضيف شبكة البحث الكلاسيكية في الأطالس - أعمدة بأحرف وصفوف بأرقام - إلى أي مشروع QGIS، مع طبقتي شبكة وتسميات جاهزتين للاستخدام. يُرجى الرجوع إلى دليل المستخدم المرفق للحصول على التعليمات الكاملة.
+
+changelog=1.0.0: First release.
+
+tracker=https://github.com/abdulwfuseini/reference-grid-labeler/issues
+repository=https://github.com/abdulwfuseini/reference-grid-labeler
+homepage=https://github.com/abdulwfuseini/reference-grid-labeler
+category=Vector
+tags=grid,reference map,atlas,index map,labeling,map book,street atlas
+
+experimental=False
+deprecated=False
+server=False
+hasProcessingProvider=yes
+icon=icon.png
