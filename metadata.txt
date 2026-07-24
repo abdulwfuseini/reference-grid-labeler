@@ -8,7 +8,7 @@ description[fr]=Ajoute une grille de référence de style atlas - colonnes lettr
 description[ru]=Добавляет на карту готовую координатную сетку в стиле атласа - столбцы с буквами, строки с числами - за несколько кликов.
 description[zh]=只需点击几下,即可为任意地图添加现成的图集风格参考网格(字母列、数字行)。
 description[ar]=يضيف شبكة مرجعية جاهزة على طراز الأطالس - أعمدة بأحرف وصفوف بأرقام - إلى أي خريطة ببضع نقرات.
-version=1.0.0
+version=1.0.2
 author=Abdul Fuseini
 email=abdulgis65@gmail.com
 
