@@ -21,6 +21,7 @@ from qgis.core import (
     QgsProcessingParameterDefinition,
     QgsProcessingException,
     QgsProcessingLayerPostProcessorInterface,
+    QgsMessageLog,
     QgsProject,
     QgsCoordinateTransform,
     QgsUnitTypes,
@@ -451,10 +452,21 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
                         and abs(layer_extent.yMaximum() - extent.yMaximum()) <= tolerance
                     ):
                         return layer.name()
-                except Exception:
+                except Exception as layer_exc:
+                    QgsMessageLog.logMessage(
+                        "Skipped layer '{}' while guessing source layer name: {}".format(
+                            layer.name() if layer is not None else "<unknown>", layer_exc
+                        ),
+                        "Reference Grid Labeler",
+                        Qgis.Info,
+                    )
                     continue
-        except Exception:
-            pass
+        except Exception as guess_exc:
+            QgsMessageLog.logMessage(
+                "Could not guess source layer name: {}".format(guess_exc),
+                "Reference Grid Labeler",
+                Qgis.Info,
+            )
         return None
 
     def processAlgorithm(self, parameters, context, feedback):
