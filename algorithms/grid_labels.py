@@ -260,7 +260,7 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
             minValue=0,
             defaultValue=0,
         )
-        extent_buffer_param.setDefaultUnit(QgsUnitTypes.DistanceMeters)
+        extent_buffer_param.setDefaultUnit(QgsUnitTypes.DistanceUnit.DistanceMeters)
         self.addParameter(extent_buffer_param)
         self.addParameter(
             QgsProcessingParameterBoolean(
@@ -276,7 +276,7 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
             optional=True,
             minValue=0,
         )
-        cell_width_param.setDefaultUnit(QgsUnitTypes.DistanceMeters)
+        cell_width_param.setDefaultUnit(QgsUnitTypes.DistanceUnit.DistanceMeters)
         self.addParameter(cell_width_param)
 
         cell_height_param = QgsProcessingParameterDistance(
@@ -286,7 +286,7 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
             optional=True,
             minValue=0,
         )
-        cell_height_param.setDefaultUnit(QgsUnitTypes.DistanceMeters)
+        cell_height_param.setDefaultUnit(QgsUnitTypes.DistanceUnit.DistanceMeters)
         self.addParameter(cell_height_param)
 
         # --- label range ---
@@ -367,7 +367,7 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
         # custom map-sheet naming convention, so it's tucked under
         # "Advanced Parameters" instead of cluttering the main dialog.
         cell_label_format_param.setFlags(
-            cell_label_format_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced
+            cell_label_format_param.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced
         )
         self.addParameter(cell_label_format_param)
 
@@ -400,7 +400,7 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
             optional=True,
             minValue=0,
         )
-        label_margin_param.setDefaultUnit(QgsUnitTypes.DistanceMeters)
+        label_margin_param.setDefaultUnit(QgsUnitTypes.DistanceUnit.DistanceMeters)
         label_margin_param.setHelp(tr("hint_label_margin"))
         self.addParameter(label_margin_param)
 
@@ -409,14 +409,14 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_GRID,
                 tr("param_output_grid_label"),
-                type=QgsProcessing.TypeVectorPolygon,
+                type=QgsProcessing.SourceType.TypeVectorPolygon,
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_LABELS,
                 tr("param_output_labels_label"),
-                type=QgsProcessing.TypeVectorPoint,
+                type=QgsProcessing.SourceType.TypeVectorPoint,
             )
         )
 
@@ -458,14 +458,14 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
                             layer.name() if layer is not None else "<unknown>", layer_exc
                         ),
                         "Reference Grid Labeler",
-                        Qgis.Info,
+                        Qgis.MessageLevel.Info,
                     )
                     continue
         except Exception as guess_exc:
             QgsMessageLog.logMessage(
                 "Could not guess source layer name: {}".format(guess_exc),
                 "Reference Grid Labeler",
-                Qgis.Info,
+                Qgis.MessageLevel.Info,
             )
         return None
 
@@ -623,7 +623,7 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
         grid_fields.append(QgsField("ref", QVariant.String))
         grid_sink, grid_dest_id = self.parameterAsSink(
             parameters, self.OUTPUT_GRID, context, grid_fields,
-            QgsWkbTypes.Polygon, crs,
+            QgsWkbTypes.Type.Polygon, crs,
         )
         if grid_sink is None:
             raise QgsProcessingException(
@@ -642,7 +642,7 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
         label_fields.append(QgsField("label", QVariant.String))
         label_sink, label_dest_id = self.parameterAsSink(
             parameters, self.OUTPUT_LABELS, context, label_fields,
-            QgsWkbTypes.Point, crs,
+            QgsWkbTypes.Type.Point, crs,
         )
         if label_sink is None:
             raise QgsProcessingException(
