@@ -8,7 +8,7 @@ description[fr]=Ajoute une grille de référence de style atlas - colonnes lettr
 description[ru]=Добавляет на карту готовую координатную сетку в стиле атласа - столбцы с буквами, строки с числами - за несколько кликов.
 description[zh]=只需点击几下,即可为任意地图添加现成的图集风格参考网格(字母列、数字行)。
 description[ar]=يضيف شبكة مرجعية جاهزة على طراز الأطالس - أعمدة بأحرف وصفوف بأرقام - إلى أي خريطة ببضع نقرات.
-version=1.0.2
+version=1.1.0
 author=Abdul Fuseini
 email=abdulgis65@gmail.com
 
@@ -20,7 +20,9 @@ about[ru]=Добавляет классическую поисковую сет�
 about[zh]=为任意 QGIS 项目添加经典的图集检索网格(字母列、数字行),并提供可直接使用的网格图层和标注图层。完整说明请参阅随附的用户指南。
 about[ar]=تضيف شبكة البحث الكلاسيكية في الأطالس - أعمدة بأحرف وصفوف بأرقام - إلى أي مشروع QGIS، مع طبقتي شبكة وتسميات جاهزتين للاستخدام. يُرجى الرجوع إلى دليل المستخدم المرفق للحصول على التعليمات الكاملة.
 
-changelog=1.0.0: First release.
+changelog=1.1.0 - Added line layer output alongside points and polygons; fixed deprecated QgsField/QVariant usage for compatibility with current and future QGIS versions
+    1.0.3 - Bug fixes
+    1.0.0 - First release
 
 tracker=https://github.com/abdulwfuseini/reference-grid-labeler/issues
 repository=https://github.com/abdulwfuseini/reference-grid-labeler

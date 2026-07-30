@@ -32,6 +32,7 @@ from qgis.core import (
     QgsPointXY,
     QgsWkbTypes,
     QgsFillSymbol,
+    QgsLineSymbol,
     QgsMarkerSymbol,
     QgsSingleSymbolRenderer,
     QgsPalLayerSettings,
@@ -64,14 +65,30 @@ _LABEL_PLACEMENT_OVER_POINT = _resolve_label_placement("OverPoint")
 # so the same value centers a label on a polygon's centroid too.
 _LABEL_PLACEMENT_AROUND_CENTROID = _LABEL_PLACEMENT_OVER_POINT
 
-from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtGui import QColor, QFont
 from qgis.utils import iface as _iface
+
+# QgsField's QVariant.Type constructor argument was only deprecated in
+# favour of QMetaType.Type as of QGIS 3.38 (the Qt6 migration). Older,
+# still-common Qt5 builds (e.g. the 3.22/3.28/3.34 LTRs) don't have the
+# QMetaType.Type overload at all, so pick whichever the running QGIS
+# actually supports instead of hardcoding one.
+if Qgis.QGIS_VERSION_INT >= 33800:
+    from qgis.PyQt.QtCore import QMetaType
+    _FIELD_TYPE_STRING = QMetaType.Type.QString
+else:
+    from qgis.PyQt.QtCore import QVariant
+    _FIELD_TYPE_STRING = QVariant.String
 
 from ..label_utils import generate_label_range, generate_labels_from_start
 from ..i18n import tr
 
 MAX_CELLS = 10000
+
+# Shared color for both the grid-cell outline and the grid-lines output, at
+# 40% opacity (255 * 0.40 ~= 102) - labels are unaffected, only the grid
+# geometry itself is drawn semi-transparent.
+_GRID_LINE_COLOR = "0,170,220,102"
 
 # Index 0/1 meaning for the label-type and direction enum parameters below.
 _LABEL_TYPES = ("letters", "numbers")
@@ -126,7 +143,7 @@ class _GridStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
     def postProcessLayer(self, layer, context, feedback):
         symbol = QgsFillSymbol.createSimple({
             "color": "0,0,0,0",
-            "outline_color": "0,170,220,255",
+            "outline_color": _GRID_LINE_COLOR,
             "outline_width": "0.3",
             "outline_width_unit": "MM",
         })
@@ -145,6 +162,29 @@ class _GridStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
     @classmethod
     def create(cls, center_label_field=None):
         processor = cls(center_label_field)
+        cls._instances.append(processor)
+        return processor
+
+
+class _GridLineStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
+    """Styles the optional grid-lines output as a thin colored line, using
+    the same color as the grid cell outline elsewhere in this tool so both
+    representations of the grid look consistent."""
+
+    _instances = []
+
+    def postProcessLayer(self, layer, context, feedback):
+        symbol = QgsLineSymbol.createSimple({
+            "line_color": _GRID_LINE_COLOR,
+            "line_width": "0.3",
+            "line_width_unit": "MM",
+        })
+        layer.setRenderer(QgsSingleSymbolRenderer(symbol))
+        _refresh_layer(layer)
+
+    @classmethod
+    def create(cls):
+        processor = cls()
         cls._instances.append(processor)
         return processor
 
@@ -213,8 +253,10 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
     CENTER_LABELS = "CENTER_LABELS"
     BORDER_SIDES = "BORDER_SIDES"
     LABEL_MARGIN = "LABEL_MARGIN"
+    GRID_LINE_BORDERS = "GRID_LINE_BORDERS"
     OUTPUT_GRID = "OUTPUT_GRID"
     OUTPUT_LABELS = "OUTPUT_LABELS"
+    OUTPUT_LINES = "OUTPUT_LINES"
 
     def createInstance(self):
         return GridLabelerAlgorithm()
@@ -391,6 +433,7 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
                 ],
                 allowMultiple=True,
                 defaultValue=[0, 1, 2, 3],
+                optional=True,
             )
         )
         label_margin_param = QgsProcessingParameterDistance(
@@ -403,6 +446,30 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
         label_margin_param.setDefaultUnit(QgsUnitTypes.DistanceUnit.DistanceMeters)
         label_margin_param.setHelp(tr("hint_label_margin"))
         self.addParameter(label_margin_param)
+
+        # --- grid lines ---
+        # Separate from BORDER_SIDES above (which only controls where the
+        # border INDEX LABELS show up): this controls which of the four
+        # outer edges of the optional grid-LINES output are drawn closed.
+        # Interior divider lines between cells are always drawn regardless
+        # of this setting - a polygon can't have an "open" side, which is
+        # why this only applies to the separate line output, not the grid
+        # cell polygons.
+        grid_line_borders_param = QgsProcessingParameterEnum(
+            self.GRID_LINE_BORDERS,
+            tr("param_grid_line_borders_label"),
+            options=[
+                tr("opt_side_top"),
+                tr("opt_side_bottom"),
+                tr("opt_side_left"),
+                tr("opt_side_right"),
+            ],
+            allowMultiple=True,
+            defaultValue=[0, 1, 2, 3],
+            optional=True,
+        )
+        grid_line_borders_param.setHelp(tr("hint_grid_line_borders"))
+        self.addParameter(grid_line_borders_param)
 
         # --- output ---
         self.addParameter(
@@ -417,6 +484,14 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
                 self.OUTPUT_LABELS,
                 tr("param_output_labels_label"),
                 type=QgsProcessing.SourceType.TypeVectorPoint,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.OUTPUT_LINES,
+                tr("param_output_lines_label"),
+                type=QgsProcessing.SourceType.TypeVectorLine,
+                optional=True,
             )
         )
 
@@ -607,6 +682,11 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
         border_bottom = 1 in border_sides
         border_left = 2 in border_sides
         border_right = 3 in border_sides
+        grid_line_borders = set(self.parameterAsEnums(parameters, self.GRID_LINE_BORDERS, context))
+        grid_border_top = 0 in grid_line_borders
+        grid_border_bottom = 1 in grid_line_borders
+        grid_border_left = 2 in grid_line_borders
+        grid_border_right = 3 in grid_line_borders
         margin = self.parameterAsDouble(parameters, self.LABEL_MARGIN, context)
         if not margin or margin <= 0:
             margin = min(cell_width, cell_height) * 0.08
@@ -618,9 +698,9 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
 
         # --- grid cell (polygon) sink ---
         grid_fields = QgsFields()
-        grid_fields.append(QgsField("col", QVariant.String))
-        grid_fields.append(QgsField("row", QVariant.String))
-        grid_fields.append(QgsField("ref", QVariant.String))
+        grid_fields.append(QgsField("col", _FIELD_TYPE_STRING))
+        grid_fields.append(QgsField("row", _FIELD_TYPE_STRING))
+        grid_fields.append(QgsField("ref", _FIELD_TYPE_STRING))
         grid_sink, grid_dest_id = self.parameterAsSink(
             parameters, self.OUTPUT_GRID, context, grid_fields,
             QgsWkbTypes.Type.Polygon, crs,
@@ -638,8 +718,8 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
 
         # --- label (point) sink ---
         label_fields = QgsFields()
-        label_fields.append(QgsField("side", QVariant.String))
-        label_fields.append(QgsField("label", QVariant.String))
+        label_fields.append(QgsField("side", _FIELD_TYPE_STRING))
+        label_fields.append(QgsField("label", _FIELD_TYPE_STRING))
         label_sink, label_dest_id = self.parameterAsSink(
             parameters, self.OUTPUT_LABELS, context, label_fields,
             QgsWkbTypes.Type.Point, crs,
@@ -651,6 +731,22 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
         if context.willLoadLayerOnCompletion(label_dest_id):
             context.layerToLoadOnCompletionDetails(label_dest_id).setPostProcessor(
                 _AutoLabelPostProcessor.create(field_name="label")
+            )
+
+        # --- grid lines (line) sink - optional ---
+        # Unlike OUTPUT_GRID/OUTPUT_LABELS above, this output is optional:
+        # skipping it in the dialog is a normal choice, not an error, so
+        # line_sink is allowed to be None below rather than raising.
+        line_fields = QgsFields()
+        line_fields.append(QgsField("orientation", _FIELD_TYPE_STRING))
+        line_fields.append(QgsField("side", _FIELD_TYPE_STRING))
+        line_sink, line_dest_id = self.parameterAsSink(
+            parameters, self.OUTPUT_LINES, context, line_fields,
+            QgsWkbTypes.Type.LineString, crs,
+        )
+        if line_sink is not None and context.willLoadLayerOnCompletion(line_dest_id):
+            context.layerToLoadOnCompletionDetails(line_dest_id).setPostProcessor(
+                _GridLineStylePostProcessor.create()
             )
 
         x0 = extent.xMinimum()
@@ -726,13 +822,70 @@ class GridLabelerAlgorithm(QgsProcessingAlgorithm):
                     right_x = extent.xMaximum() - margin
                     _add_label_point(label_sink, label_fields, right_x, y_center, "right", row_labels[row_idx])
 
+        # --- grid lines: interior dividers always drawn, outer edges optional ---
+        # Column/row counts give num_columns+1 vertical and num_rows+1
+        # horizontal grid lines respectively - the two outermost of each
+        # are the grid's own border and are only added when the matching
+        # GRID_LINE_BORDERS side is selected; everything in between is an
+        # interior divider line, always drawn since a partial/broken
+        # interior grid wouldn't look like a real reference grid.
+        if line_sink is not None:
+            for col_idx in range(num_columns + 1):
+                if feedback.isCanceled():
+                    break
+                x = x0 + col_idx * cell_width
+                if col_idx == 0:
+                    side = "left"
+                    if not grid_border_left:
+                        continue
+                elif col_idx == num_columns:
+                    side = "right"
+                    if not grid_border_right:
+                        continue
+                else:
+                    side = "interior"
+                _add_line_feature(
+                    line_sink, line_fields, "vertical", side,
+                    QgsPointXY(x, extent.yMinimum()), QgsPointXY(x, extent.yMaximum()),
+                )
+
+            for row_idx in range(num_rows + 1):
+                if feedback.isCanceled():
+                    break
+                y = extent.yMaximum() - row_idx * cell_height
+                if row_idx == 0:
+                    side = "top"
+                    if not grid_border_top:
+                        continue
+                elif row_idx == num_rows:
+                    side = "bottom"
+                    if not grid_border_bottom:
+                        continue
+                else:
+                    side = "interior"
+                _add_line_feature(
+                    line_sink, line_fields, "horizontal", side,
+                    QgsPointXY(extent.xMinimum(), y), QgsPointXY(extent.xMaximum(), y),
+                )
+
         feedback.setProgress(100)
 
-        return {self.OUTPUT_GRID: grid_dest_id, self.OUTPUT_LABELS: label_dest_id}
+        return {
+            self.OUTPUT_GRID: grid_dest_id,
+            self.OUTPUT_LABELS: label_dest_id,
+            self.OUTPUT_LINES: line_dest_id,
+        }
 
 
 def _add_label_point(sink, fields, x, y, side, label):
     feat = QgsFeature(fields)
     feat.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(x, y)))
     feat.setAttributes([side, label])
+    sink.addFeature(feat)
+
+
+def _add_line_feature(sink, fields, orientation, side, p1, p2):
+    feat = QgsFeature(fields)
+    feat.setGeometry(QgsGeometry.fromPolylineXY([p1, p2]))
+    feat.setAttributes([orientation, side])
     sink.addFeature(feat)
